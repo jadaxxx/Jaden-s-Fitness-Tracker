@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Fitness Tracker - Dashboard</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+  <span class="brand">Jaden's Fitness Tracker</span>
+  <a href="index.html" class="active">Dashboard</a>
+  <a href="workouts.html">Workouts</a>
+  <a href="workout-form.html">Add Workout</a>
+</nav>
+
+<main>
+  <div class="top-bar">
+    <div>
+      <div class="eyebrow">Activity Overview</div>
+      <h1 style="margin:0;">Dashboard</h1>
+    </div>
+    <a href="workout-form.html" class="btn">+ Add Workout</a>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="label">Total Workouts</div>
+      <div class="value" id="stat-count">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Total Minutes</div>
+      <div class="value" id="stat-minutes">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Total Calories</div>
+      <div class="value" id="stat-calories">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Avg Duration</div>
+      <div class="value" id="stat-avg">0</div>
+    </div>
+  </div>
+
+  <div class="dash-grid">
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Last 7 Days</h2>
+        <span class="panel-sub" id="week-total">0 min</span>
+      </div>
+      <div class="bar-chart" id="week-chart"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Weekly Goal</h2>
+        <span class="panel-sub" id="goal-label">0 / 150 min</span>
+      </div>
+      <div class="goal-track">
+        <div class="goal-fill" id="goal-fill"></div>
+      </div>
+      <div class="goal-note" id="goal-note"></div>
+
+      <h2 style="margin-top:28px;">By Activity Type</h2>
+      <div id="type-breakdown"></div>
+    </div>
+
+  </div>
+
+  <div class="top-bar" style="margin-top:40px;">
+    <h2 style="margin:0;">Recent Workouts</h2>
+    <a href="workouts.html" class="btn btn-secondary">View All</a>
+  </div>
+
+  <div id="recent-list"></div>
+  <p class="empty" id="empty-msg" style="display:none;">No workouts logged yet. Add your first one!</p>
+</main>
+
+<script src="app.js"></script>
+<script>
+  seedIfEmpty();
+  const ICONS = {
+    Running: '🏃', Cycling: '🚴', Weights: '🏋️', Yoga: '🧘', Swimming: '🏊', Other: '⚡'
+  };
+
+  const workouts = getWorkouts().sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  // --- Top stat cards ---
+  document.getElementById('stat-count').textContent = workouts.length;
+  const totalMinutes = workouts.reduce((sum, w) => sum + Number(w.duration), 0);
+  const totalCalories = workouts.reduce((sum, w) => sum + Number(w.calories || 0), 0);
+  document.getElementById('stat-minutes').textContent = totalMinutes;
+  document.getElementById('stat-calories').textContent = totalCalories;
+  document.getElementById('stat-avg').textContent = workouts.length
+    ? Math.round(totalMinutes / workouts.length) + 'm'
+    : '0m';
+
+  // --- Last 7 days bar chart ---
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    days.push(d.toISOString().split('T')[0]);
+  }
+  const minutesByDay = days.map(day =>
+    workouts.filter(w => w.date === day).reduce((sum, w) => sum + Number(w.duration), 0)
+  );
+  const weekTotal = minutesByDay.reduce((a, b) => a + b, 0);
+  document.getElementById('week-total').textContent = weekTotal + ' min';
+
+  const maxMin = Math.max(...minutesByDay, 30);
+  const chart = document.getElementById('week-chart');
+  days.forEach((day, i) => {
+    const pct = Math.round((minutesByDay[i] / maxMin) * 100);
+    const label = new Date(day + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+    const col = document.createElement('div');
+    col.className = 'bar-col';
+    col.innerHTML = `
+      <div class="bar-track">
+        <div class="bar-fill" style="height:${pct}%"></div>
+      </div>
+      <div class="bar-val">${minutesByDay[i] || ''}</div>
+      <div class="bar-label">${label}</div>`;
+    chart.appendChild(col);
+  });
+
+  // --- Weekly goal ---
+  const GOAL = 150;
+  const goalPct = Math.min(100, Math.round((weekTotal / GOAL) * 100));
+  document.getElementById('goal-label').textContent = `${weekTotal} / ${GOAL} min`;
+  document.getElementById('goal-fill').style.width = goalPct + '%';
+  document.getElementById('goal-note').textContent = weekTotal >= GOAL
+    ? 'Goal reached this week. Great work.'
+    : `${GOAL - weekTotal} min to go this week.`;
+
+  // --- By type breakdown ---
+  const byType = {};
+  workouts.forEach(w => { byType[w.type] = (byType[w.type] || 0) + Number(w.duration); });
+  const typeEl = document.getElementById('type-breakdown');
+  const typeEntries = Object.entries(byType).sort((a, b) => b[1] - a[1]);
+  if (typeEntries.length === 0) {
+    typeEl.innerHTML = '<p class="empty" style="padding:16px 0;">No data yet</p>';
+  } else {
+    const maxType = typeEntries[0][1];
+    typeEntries.forEach(([type, mins]) => {
+      const row = document.createElement('div');
+      row.className = 'type-row';
+      row.innerHTML = `
+        <span class="type-icon">${ICONS[type] || '⚡'}</span>
+        <span class="type-name">${type}</span>
+        <div class="type-track"><div class="type-fill" style="width:${Math.round((mins / maxType) * 100)}%"></div></div>
+        <span class="type-mins">${mins}m</span>`;
+      typeEl.appendChild(row);
+    });
+  }
+
+  // --- Recent workouts as cards ---
+  const list = document.getElementById('recent-list');
+  if (workouts.length === 0) {
+    document.getElementById('empty-msg').style.display = 'block';
+  } else {
+    workouts.slice(0, 5).forEach(w => {
+      const item = document.createElement('div');
+      item.className = 'activity-row';
+      item.innerHTML = `
+        <span class="activity-icon">${ICONS[w.type] || '⚡'}</span>
+        <div class="activity-main">
+          <div class="activity-type">${w.type}</div>
+          <div class="activity-date">${new Date(w.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+        </div>
+        <div class="activity-metric"><span>${w.duration}</span><small>min</small></div>
+        <div class="activity-metric"><span>${w.calories || 0}</span><small>cal</small></div>`;
+      list.appendChild(item);
+    });
+  }
+</script>
+
+</body>
+</html>
