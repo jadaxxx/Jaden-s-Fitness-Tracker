@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Fitness Tracker - Workouts</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+  <span class="brand">Jaden's Fitness Tracker</span>
+  <a href="index.html">Dashboard</a>
+  <a href="workouts.html" class="active">Workouts</a>
+  <a href="workout-form.html">Add Workout</a>
+</nav>
+
+<main>
+  <div class="top-bar">
+    <div>
+      <div class="eyebrow">Activity Log</div>
+      <h1 style="margin:0;">Workouts</h1>
+    </div>
+    <a href="workout-form.html" class="btn">+ Add Workout</a>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th><th>Type</th><th>Duration</th><th>Calories</th><th>Notes</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="workout-body"></tbody>
+    </table>
+    <p class="empty" id="empty-msg" style="display:none;">No workouts yet. Add your first one!</p>
+  </div>
+</main>
+
+<script src="app.js"></script>
+<script>
+  seedIfEmpty();
+
+  function render() {
+    const workouts = getWorkouts().sort((a, b) => new Date(b.date) - new Date(a.date));
+    const body = document.getElementById('workout-body');
+    body.innerHTML = '';
+
+    if (workouts.length === 0) {
+      document.getElementById('empty-msg').style.display = 'block';
+      return;
+    }
+    document.getElementById('empty-msg').style.display = 'none';
+
+    workouts.forEach(w => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${w.date}</td>
+        <td><span class="tag">${w.type}</span></td>
+        <td>${w.duration} min</td>
+        <td>${w.calories || 0}</td>
+        <td>${w.notes || '-'}</td>
+        <td>
+          <a class="btn btn-secondary btn-sm" href="workout-form.html?id=${w.id}">Edit</a>
+          <button class="btn btn-danger btn-sm" onclick="handleDelete('${w.id}')">Delete</button>
+        </td>`;
+      body.appendChild(row);
+    });
+  }
+
+  function handleDelete(id) {
+    if (confirm('Delete this workout?')) {
+      deleteWorkout(id);
+      render();
+    }
+  }
+
+  render();
+</script>
+
+</body>
+</html>
